@@ -34,33 +34,36 @@ export default function Home() {
     if (!party) return alert("Party name required");
 
     if (editingId) {
-      // UPDATE
       await supabase
         .from("entries")
         .update({
           party_name: party,
-          phone: phone || null,
-          address: address || null,
-          gold: Number(gold) || 0,
-          cash: Number(cash) || 0,
+          phone,
+          address,
+          gold,
+          cash,
         })
         .eq("id", editingId);
 
       setEditingId(null);
     } else {
-      // INSERT
       await supabase.from("entries").insert([
         {
           party_name: party,
-          phone: phone || null,
-          address: address || null,
-          gold: Number(gold) || 0,
-          cash: Number(cash) || 0,
+          phone,
+          address,
+          gold,
+          cash,
         },
       ]);
     }
 
-    clearForm();
+    setParty("");
+    setPhone("");
+    setAddress("");
+    setGold("");
+    setCash("");
+
     fetchEntries();
   }
 
@@ -75,108 +78,49 @@ export default function Home() {
 
   async function deleteEntry(id) {
     if (!confirm("Delete this entry?")) return;
-
     await supabase.from("entries").delete().eq("id", id);
     fetchEntries();
-  }
-
-  function clearForm() {
-    setParty("");
-    setPhone("");
-    setAddress("");
-    setGold("");
-    setCash("");
   }
 
   const totalGold = entries.reduce((s, e) => s + (e.gold || 0), 0);
   const totalCash = entries.reduce((s, e) => s + (e.cash || 0), 0);
 
   return (
-    <div style={{ padding: 20, background: "#f5f5f5", minHeight: "100vh" }}>
+    <div style={{ padding: 20 }}>
       <h2>💎 N.K Jewellers Ledger</h2>
 
-      <input placeholder="Party Name *" value={party} onChange={(e) => setParty(e.target.value)} style={input} />
-      <input placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} style={input} />
-      <input placeholder="Address" value={address} onChange={(e) => setAddress(e.target.value)} style={input} />
-      <input placeholder="Gold" value={gold} onChange={(e) => setGold(e.target.value)} style={input} />
-      <input placeholder="Cash" value={cash} onChange={(e) => setCash(e.target.value)} style={input} />
+      <input placeholder="Party Name" value={party} onChange={(e) => setParty(e.target.value)} />
+      <input placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+      <input placeholder="Address" value={address} onChange={(e) => setAddress(e.target.value)} />
+      <input placeholder="Gold" value={gold} onChange={(e) => setGold(e.target.value)} />
+      <input placeholder="Cash" value={cash} onChange={(e) => setCash(e.target.value)} />
 
-      <button onClick={saveEntry} style={btn}>
+      <button onClick={saveEntry}>
         {editingId ? "Update Entry" : "Add Entry"}
       </button>
 
-      <div style={{ marginTop: 20 }}>
-        <div style={card}>Total Gold: {totalGold} g</div>
-        <div style={card}>Total Cash: ₹ {totalCash}</div>
-      </div>
+      <h3>Total Gold: {totalGold} g</h3>
+      <h3>Total Cash: ₹ {totalCash}</h3>
 
-      <h3 style={{ marginTop: 20 }}>Entries</h3>
+      <h3>Entries</h3>
 
       {entries.map((e) => (
-        <div key={e.id} style={entry}>
-          <b>{e.party_name}</b><br />
-          {e.phone && <>📞 {e.phone}<br /></>}
-          {e.address && <>📍 {e.address}<br /></>}
-          Gold: {e.gold} g | Cash: ₹ {e.cash}
+        <div key={e.id} style={{ marginBottom: 10, padding: 10, background: "#f5f5f5" }}>
+          
+          {/* 🔥 CLICKABLE PARTY */}
+          <a href={`/ledger?party=${e.party_name}`} style={{ color: "blue" }}>
+            <b>{e.party_name}</b>
+          </a>
 
-          <div style={{ marginTop: 10 }}>
-            <button onClick={() => editEntry(e)} style={editBtn}>✏️ Edit</button>
-            <button onClick={() => deleteEntry(e.id)} style={delBtn}>🗑 Delete</button>
-          </div>
+          <div>📞 {e.phone || "-"}</div>
+          <div>📍 {e.address || "-"}</div>
+          <div>Gold: {e.gold} g</div>
+          <div>Cash: ₹ {e.cash}</div>
+
+          <button onClick={() => editEntry(e)}>✏️ Edit</button>
+          <button onClick={() => deleteEntry(e.id)}>🗑 Delete</button>
         </div>
       ))}
     </div>
   );
 }
-
-const input = {
-  display: "block",
-  marginBottom: 10,
-  padding: 10,
-  width: "100%",
-  maxWidth: 400,
-  background: "#fff",
-  color: "#000",
-  border: "1px solid #ccc",
-  borderRadius: 5
-};
-
-const btn = {
-  padding: 10,
-  background: "#4CAF50",
-  color: "#fff",
-  border: "none",
-  borderRadius: 5
-};
-
-const card = {
-  display: "inline-block",
-  marginRight: 10,
-  padding: 10,
-  background: "#fff",
-  borderRadius: 5
-};
-
-const entry = {
-  background: "#fff",
-  padding: 10,
-  marginTop: 10,
-  borderRadius: 5
-};
-
-const editBtn = {
-  marginRight: 10,
-  padding: 6,
-  background: "#2196F3",
-  color: "#fff",
-  border: "none",
-  borderRadius: 4
-};
-
-const delBtn = {
-  padding: 6,
-  background: "#f44336",
-  color: "#fff",
-  border: "none",
-  borderRadius: 4
-};
