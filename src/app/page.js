@@ -9,7 +9,11 @@ const supabase = createClient(
 
 export default function Home() {
   const [entries, setEntries] = useState([]);
+  const [editingId, setEditingId] = useState(null);
+
   const [party, setParty] = useState("");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
   const [gold, setGold] = useState("");
   const [cash, setCash] = useState("");
   const [type, setType] = useState("IN");
@@ -27,32 +31,97 @@ export default function Home() {
     setEntries(data || []);
   }
 
-  async function addEntry() {
+  async function saveEntry() {
     if (!party) return alert("Enter party name");
 
-    // check duplicate
+    // 🔍 same party + phone + address
     const existing = entries.find(
-      (e) => e.party_name.toLowerCase() === party.toLowerCase()
+      (e) =>
+        e.party_name.toLowerCase() === party.toLowerCase() &&
+        (e.phone || "") === (phone || "") &&
+        (e.address || "") === (address || "")
     );
 
-    if (existing) {
-      const confirmAdd = confirm("Party already exists. Add new entry?");
-      if (!confirmAdd) return;
+    // 🔥 MERGE LOGIC
+    if (!editingId && existing) {
+      const merge = confirm("Same party found. Merge entries?");
+      if (merge) {
+        const newGold =
+          type === "IN"
+            ? (existing.gold || 0) + Number(gold || 0)
+            : (existing.gold || 0) - Number(gold || 0);
+
+        const newCash =
+          type === "IN"
+            ? (existing.cash || 0) + Number(cash || 0)
+            : (existing.cash || 0) - Number(cash || 0);
+
+        await supabase
+          .from("entries")
+          .update({ gold: newGold, cash: newCash })
+          .eq("id", existing.id);
+
+        clearForm();
+        fetchEntries();
+        return;
+      }
     }
 
-    await supabase.from("entries").insert([
-      {
-        party_name: party,
-        gold: Number(gold) || 0,
-        cash: Number(cash) || 0,
-        type,
-      },
-    ]);
+    if (editingId) {
+      // ✏️ UPDATE
+      await supabase
+        .from("entries")
+        .update({
+          party_name: party,
+          phone,
+          address,
+          gold,
+          cash,
+          type,
+        })
+        .eq("id", editingId);
 
+      setEditingId(null);
+    } else {
+      // ➕ INSERT
+      await supabase.from("entries").insert([
+        {
+          party_name: party,
+          phone,
+          address,
+          gold,
+          cash,
+          type,
+        },
+      ]);
+    }
+
+    clearForm();
+    fetchEntries();
+  }
+
+  function editEntry(e) {
+    setEditingId(e.id);
+    setParty(e.party_name);
+    setPhone(e.phone || "");
+    setAddress(e.address || "");
+    setGold(e.gold);
+    setCash(e.cash);
+    setType(e.type || "IN");
+  }
+
+  async function deleteEntry(id) {
+    if (!confirm("Delete this entry?")) return;
+    await supabase.from("entries").delete().eq("id", id);
+    fetchEntries();
+  }
+
+  function clearForm() {
     setParty("");
+    setPhone("");
+    setAddress("");
     setGold("");
     setCash("");
-    fetchEntries();
   }
 
   const totalGold = entries.reduce((sum, e) => {
@@ -71,39 +140,36 @@ export default function Home() {
     <div style={{ padding: 20 }}>
       <h2>💎 N.K Jewellers Ledger</h2>
 
-      <input
-        placeholder="Party Name"
-        value={party}
-        onChange={(e) => setParty(e.target.value)}
-      />
+      <input placeholder="Party Name" value={party} onChange={(e) => setParty(e.target.value)} />
+      <input placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
+      <input placeholder="Address" value={address} onChange={(e) => setAddress(e.target.value)} />
 
       <select value={type} onChange={(e) => setType(e.target.value)}>
         <option value="IN">IN (Aaya)</option>
         <option value="OUT">OUT (Gaya)</option>
       </select>
 
-      <input
-        placeholder="Gold"
-        value={gold}
-        onChange={(e) => setGold(e.target.value)}
-      />
+      <input placeholder="Gold" value={gold} onChange={(e) => setGold(e.target.value)} />
+      <input placeholder="Cash" value={cash} onChange={(e) => setCash(e.target.value)} />
 
-      <input
-        placeholder="Cash"
-        value={cash}
-        onChange={(e) => setCash(e.target.value)}
-      />
-
-      <button onClick={addEntry}>Add Entry</button>
+      <button onClick={saveEntry}>
+        {editingId ? "Update Entry" : "Add Entry"}
+      </button>
 
       <h3>Total Gold: {totalGold} g</h3>
       <h3>Total Cash: ₹ {totalCash}</h3>
 
       {entries.map((e) => (
         <div key={e.id} style={{ marginTop: 10, padding: 10, background: "#eee" }}>
-          <b>{e.party_name}</b> ({e.type})
+          <b>{e.party_name}</b>
+          <div>📞 {e.phone || "-"}</div>
+          <div>📍 {e.address || "-"}</div>
+          <div>Type: {e.type}</div>
           <div>Gold: {e.gold}</div>
           <div>Cash: ₹ {e.cash}</div>
+
+          <button onClick={() => editEntry(e)}>✏️ Edit</button>
+          <button onClick={() => deleteEntry(e.id)}>🗑 Delete</button>
         </div>
       ))}
     </div>
