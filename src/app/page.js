@@ -1,4 +1,5 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
@@ -13,105 +14,181 @@ export default function Home() {
   const [cash, setCash] = useState("");
   const [entries, setEntries] = useState([]);
 
-  useEffect(() => {
-    fetchEntries();
-  }, []);
-
-  async function fetchEntries() {
+  async function fetchData() {
     const { data } = await supabase
       .from("entries")
       .select("*")
       .order("created_at", { ascending: false });
+
     setEntries(data || []);
   }
 
+  useEffect(() => {
+    fetchData();
+  }, []);
+
   async function addEntry() {
-    if (!party) return;
+    if (!party) return alert("Enter party name");
 
     await supabase.from("entries").insert([
-      {
-        party_name: party,
-        gold: Number(gold),
-        cash: Number(cash),
-      },
+      { party_name: party, gold, cash },
     ]);
 
     setParty("");
     setGold("");
     setCash("");
-    fetchEntries();
+    fetchData();
   }
 
-  const totalGold = entries.reduce((sum, e) => sum + (e.gold || 0), 0);
-  const totalCash = entries.reduce((sum, e) => sum + (e.cash || 0), 0);
+  async function deleteEntry(id) {
+    await supabase.from("entries").delete().eq("id", id);
+    fetchData();
+  }
+
+  async function editEntry(entry) {
+    const newParty = prompt("Edit Party Name", entry.party_name);
+    const newGold = prompt("Edit Gold", entry.gold);
+    const newCash = prompt("Edit Cash", entry.cash);
+
+    if (!newParty) return;
+
+    await supabase
+      .from("entries")
+      .update({
+        party_name: newParty,
+        gold: newGold,
+        cash: newCash,
+      })
+      .eq("id", entry.id);
+
+    fetchData();
+  }
+
+  // totals
+  const totalGold = entries.reduce((sum, e) => sum + Number(e.gold || 0), 0);
+  const totalCash = entries.reduce((sum, e) => sum + Number(e.cash || 0), 0);
 
   return (
-    <div style={{ padding: 20, fontFamily: "sans-serif" }}>
-      <h1 style={{ marginBottom: 20 }}>💎 N.K Jewellers Ledger</h1>
+    <div style={container}>
+      <h2>💎 N.K Jewellers Ledger</h2>
 
-      {/* Form */}
-      <div style={{
-        padding: 20,
-        borderRadius: 10,
-        background: "#f5f5f5",
-        marginBottom: 20
-      }}>
-        <input
-          placeholder="Party Name"
-          value={party}
-          onChange={(e) => setParty(e.target.value)}
-        /><br /><br />
+      <input
+        placeholder="Party Name"
+        value={party}
+        onChange={(e) => setParty(e.target.value)}
+        style={input}
+      />
 
-        <input
-          placeholder="Gold (grams)"
-          value={gold}
-          onChange={(e) => setGold(e.target.value)}
-        /><br /><br />
+      <input
+        placeholder="Gold (grams)"
+        value={gold}
+        onChange={(e) => setGold(e.target.value)}
+        style={input}
+      />
 
-        <input
-          placeholder="Cash (₹)"
-          value={cash}
-          onChange={(e) => setCash(e.target.value)}
-        /><br /><br />
+      <input
+        placeholder="Cash (₹)"
+        value={cash}
+        onChange={(e) => setCash(e.target.value)}
+        style={input}
+      />
 
-        <button onClick={addEntry}>➕ Add Entry</button>
+      <button onClick={addEntry} style={button}>
+        ➕ Add Entry
+      </button>
+
+      {/* totals */}
+      <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
+        <div style={goldBox}>Total Gold: {totalGold} g</div>
+        <div style={cashBox}>Total Cash: ₹ {totalCash}</div>
       </div>
 
-      {/* Totals */}
-      <div style={{
-        display: "flex",
-        gap: 20,
-        marginBottom: 20
-      }}>
-        <div style={{ padding: 15, background: "#e6f7ff", borderRadius: 10 }}>
-          <b>Total Gold:</b> {totalGold} g
-        </div>
-        <div style={{ padding: 15, background: "#fff7e6", borderRadius: 10 }}>
-          <b>Total Cash:</b> ₹ {totalCash}
-        </div>
-      </div>
+      <h3>Entries</h3>
 
-      {/* Entries */}
-      <div style={{
-        background: "#fff",
-        padding: 20,
-        borderRadius: 10
-      }}>
-        <h3>Entries</h3>
+      {entries.map((e) => (
+        <div key={e.id} style={card}>
+          <b>{e.party_name}</b>
+          <div>Gold: {e.gold} g</div>
+          <div>Cash: ₹{e.cash}</div>
 
-        {entries.length === 0 && <p>No entries yet</p>}
+          <div style={{ marginTop: "8px" }}>
+            <button onClick={() => editEntry(e)} style={editBtn}>
+              ✏️ Edit
+            </button>
 
-        {entries.map((e) => (
-          <div key={e.id} style={{
-            padding: 10,
-            borderBottom: "1px solid #eee"
-          }}>
-            <b>{e.party_name}</b>  
-            <br />
-            Gold: {e.gold} g | Cash: ₹ {e.cash}
+            <button onClick={() => deleteEntry(e.id)} style={deleteBtn}>
+              ❌ Delete
+            </button>
           </div>
-        ))}
-      </div>
+        </div>
+      ))}
     </div>
   );
 }
+
+/* styles */
+
+const container = {
+  maxWidth: "500px",
+  margin: "auto",
+  padding: "20px",
+  fontFamily: "Arial",
+};
+
+const input = {
+  width: "100%",
+  padding: "12px",
+  marginBottom: "10px",
+  borderRadius: "8px",
+  border: "1px solid #ccc",
+  fontSize: "16px",
+  color: "#000",
+  backgroundColor: "#fff",
+};
+
+const button = {
+  width: "100%",
+  padding: "12px",
+  background: "#000",
+  color: "#fff",
+  border: "none",
+  borderRadius: "8px",
+  fontSize: "16px",
+  marginBottom: "20px",
+};
+
+const card = {
+  padding: "12px",
+  marginBottom: "10px",
+  borderRadius: "8px",
+  background: "#f5f5f5",
+};
+
+const editBtn = {
+  padding: "6px 10px",
+  marginRight: "10px",
+  border: "none",
+  borderRadius: "6px",
+  background: "#007bff",
+  color: "#fff",
+};
+
+const deleteBtn = {
+  padding: "6px 10px",
+  border: "none",
+  borderRadius: "6px",
+  background: "red",
+  color: "#fff",
+};
+
+const goldBox = {
+  padding: "10px",
+  background: "#d4f1ff",
+  borderRadius: "8px",
+};
+
+const cashBox = {
+  padding: "10px",
+  background: "#ffe8c2",
+  borderRadius: "8px",
+};
