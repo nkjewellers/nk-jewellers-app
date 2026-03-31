@@ -64,13 +64,12 @@ export default function Home() {
     fetchData();
   }
 
-  // totals
   const totalGold = entries.reduce((sum, e) => sum + Number(e.gold || 0), 0);
   const totalCash = entries.reduce((sum, e) => sum + Number(e.cash || 0), 0);
 
   return (
     <div style={container}>
-      <h2>💎 N.K Jewellers Ledger</h2>
+      <h2 style={{ textAlign: "center" }}>💎 N.K Jewellers Ledger</h2>
 
       <input
         placeholder="Party Name"
@@ -97,7 +96,7 @@ export default function Home() {
         ➕ Add Entry
       </button>
 
-      {/* totals */}
+      {/* Totals */}
       <div style={{ display: "flex", gap: "10px", marginBottom: "20px" }}>
         <div style={goldBox}>Total Gold: {totalGold} g</div>
         <div style={cashBox}>Total Cash: ₹ {totalCash}</div>
@@ -133,6 +132,9 @@ const container = {
   margin: "auto",
   padding: "20px",
   fontFamily: "Arial",
+  backgroundColor: "#ffffff",
+  color: "#000000",
+  minHeight: "100vh",
 };
 
 const input = {
