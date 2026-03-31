@@ -9,13 +9,10 @@ const supabase = createClient(
 
 export default function Home() {
   const [entries, setEntries] = useState([]);
-  const [editingId, setEditingId] = useState(null);
-
   const [party, setParty] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
   const [gold, setGold] = useState("");
   const [cash, setCash] = useState("");
+  const [type, setType] = useState("IN");
 
   useEffect(() => {
     fetchEntries();
@@ -30,95 +27,83 @@ export default function Home() {
     setEntries(data || []);
   }
 
-  async function saveEntry() {
-    if (!party) return alert("Party name required");
+  async function addEntry() {
+    if (!party) return alert("Enter party name");
 
-    if (editingId) {
-      await supabase
-        .from("entries")
-        .update({
-          party_name: party,
-          phone,
-          address,
-          gold,
-          cash,
-        })
-        .eq("id", editingId);
+    // check duplicate
+    const existing = entries.find(
+      (e) => e.party_name.toLowerCase() === party.toLowerCase()
+    );
 
-      setEditingId(null);
-    } else {
-      await supabase.from("entries").insert([
-        {
-          party_name: party,
-          phone,
-          address,
-          gold,
-          cash,
-        },
-      ]);
+    if (existing) {
+      const confirmAdd = confirm("Party already exists. Add new entry?");
+      if (!confirmAdd) return;
     }
 
+    await supabase.from("entries").insert([
+      {
+        party_name: party,
+        gold: Number(gold) || 0,
+        cash: Number(cash) || 0,
+        type,
+      },
+    ]);
+
     setParty("");
-    setPhone("");
-    setAddress("");
     setGold("");
     setCash("");
-
     fetchEntries();
   }
 
-  function editEntry(e) {
-    setEditingId(e.id);
-    setParty(e.party_name);
-    setPhone(e.phone || "");
-    setAddress(e.address || "");
-    setGold(e.gold);
-    setCash(e.cash);
-  }
+  const totalGold = entries.reduce((sum, e) => {
+    return e.type === "IN"
+      ? sum + (e.gold || 0)
+      : sum - (e.gold || 0);
+  }, 0);
 
-  async function deleteEntry(id) {
-    if (!confirm("Delete this entry?")) return;
-    await supabase.from("entries").delete().eq("id", id);
-    fetchEntries();
-  }
-
-  const totalGold = entries.reduce((s, e) => s + (e.gold || 0), 0);
-  const totalCash = entries.reduce((s, e) => s + (e.cash || 0), 0);
+  const totalCash = entries.reduce((sum, e) => {
+    return e.type === "IN"
+      ? sum + (e.cash || 0)
+      : sum - (e.cash || 0);
+  }, 0);
 
   return (
     <div style={{ padding: 20 }}>
       <h2>💎 N.K Jewellers Ledger</h2>
 
-      <input placeholder="Party Name" value={party} onChange={(e) => setParty(e.target.value)} />
-      <input placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
-      <input placeholder="Address" value={address} onChange={(e) => setAddress(e.target.value)} />
-      <input placeholder="Gold" value={gold} onChange={(e) => setGold(e.target.value)} />
-      <input placeholder="Cash" value={cash} onChange={(e) => setCash(e.target.value)} />
+      <input
+        placeholder="Party Name"
+        value={party}
+        onChange={(e) => setParty(e.target.value)}
+      />
 
-      <button onClick={saveEntry}>
-        {editingId ? "Update Entry" : "Add Entry"}
-      </button>
+      <select value={type} onChange={(e) => setType(e.target.value)}>
+        <option value="IN">IN (Aaya)</option>
+        <option value="OUT">OUT (Gaya)</option>
+      </select>
+
+      <input
+        placeholder="Gold"
+        value={gold}
+        onChange={(e) => setGold(e.target.value)}
+      />
+
+      <input
+        placeholder="Cash"
+        value={cash}
+        onChange={(e) => setCash(e.target.value)}
+      />
+
+      <button onClick={addEntry}>Add Entry</button>
 
       <h3>Total Gold: {totalGold} g</h3>
       <h3>Total Cash: ₹ {totalCash}</h3>
 
-      <h3>Entries</h3>
-
       {entries.map((e) => (
-        <div key={e.id} style={{ marginBottom: 10, padding: 10, background: "#f5f5f5" }}>
-          
-          {/* 🔥 CLICKABLE PARTY */}
-          <a href={`/ledger?party=${e.party_name}`} style={{ color: "blue" }}>
-            <b>{e.party_name}</b>
-          </a>
-
-          <div>📞 {e.phone || "-"}</div>
-          <div>📍 {e.address || "-"}</div>
-          <div>Gold: {e.gold} g</div>
+        <div key={e.id} style={{ marginTop: 10, padding: 10, background: "#eee" }}>
+          <b>{e.party_name}</b> ({e.type})
+          <div>Gold: {e.gold}</div>
           <div>Cash: ₹ {e.cash}</div>
-
-          <button onClick={() => editEntry(e)}>✏️ Edit</button>
-          <button onClick={() => deleteEntry(e.id)}>🗑 Delete</button>
         </div>
       ))}
     </div>
