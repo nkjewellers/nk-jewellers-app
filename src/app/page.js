@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-// 🔑 Supabase config
 const supabase = createClient(
   "https://norfynjyeeqrqqcqjawp.supabase.co",
   "sb_publishable_CVSigeYJoONriiY2j0yXvg_hvU4d9ZM"
@@ -11,13 +10,16 @@ const supabase = createClient(
 
 export default function Home() {
   const [entries, setEntries] = useState([]);
-  const [partyName, setPartyName] = useState("");
-  const [gold, setGold] = useState("");
-  const [cash, setCash] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
+  const [form, setForm] = useState({
+    party_name: "",
+    gold: "",
+    cash: "",
+    phone: "",
+    address: "",
+  });
 
-  // 📥 Fetch data
+  const [editId, setEditId] = useState(null);
+
   const fetchEntries = async () => {
     const { data } = await supabase.from("entries").select("*");
     setEntries(data || []);
@@ -27,163 +29,214 @@ export default function Home() {
     fetchEntries();
   }, []);
 
-  // ➕ Add entry
-  const addEntry = async () => {
-    if (!partyName) return alert("Party name required");
+  // ➕ Add / Merge / Update
+  const handleSubmit = async () => {
+    if (!form.party_name) return alert("Party name required");
 
-    await supabase.from("entries").insert([
-      {
-        party_name: partyName,
-        gold: Number(gold) || 0,
-        cash: Number(cash) || 0,
-        phone: phone || null,
-        address: address || null,
-      },
-    ]);
+    const gold = Number(form.gold) || 0;
+    const cash = Number(form.cash) || 0;
 
-    setPartyName("");
-    setGold("");
-    setCash("");
-    setPhone("");
-    setAddress("");
+    // 🔍 same party check
+    const existing = entries.find(
+      (e) =>
+        e.party_name.toLowerCase() === form.party_name.toLowerCase() &&
+        (e.phone || "") === (form.phone || "") &&
+        (e.address || "") === (form.address || "")
+    );
+
+    // ✏ EDIT MODE
+    if (editId) {
+      await supabase
+        .from("entries")
+        .update({
+          ...form,
+          gold,
+          cash,
+        })
+        .eq("id", editId);
+
+      setEditId(null);
+    }
+    // 🔁 MERGE MODE
+    else if (existing) {
+      const confirmMerge = confirm(
+        "Same party found. Merge entries?"
+      );
+
+      if (confirmMerge) {
+        await supabase
+          .from("entries")
+          .update({
+            gold: existing.gold + gold,
+            cash: existing.cash + cash,
+          })
+          .eq("id", existing.id);
+      } else {
+        await supabase.from("entries").insert([
+          {
+            ...form,
+            gold,
+            cash,
+          },
+        ]);
+      }
+    }
+    // ➕ NEW
+    else {
+      await supabase.from("entries").insert([
+        {
+          ...form,
+          gold,
+          cash,
+        },
+      ]);
+    }
+
+    setForm({
+      party_name: "",
+      gold: "",
+      cash: "",
+      phone: "",
+      address: "",
+    });
 
     fetchEntries();
   };
 
-  // ❌ Delete entry
+  // ❌ Delete
   const deleteEntry = async (id) => {
     await supabase.from("entries").delete().eq("id", id);
     fetchEntries();
   };
 
-  // 💰 Totals
-  const totalGold = entries.reduce((sum, e) => sum + (e.gold || 0), 0);
-  const totalCash = entries.reduce((sum, e) => sum + (e.cash || 0), 0);
+  // ✏ Edit
+  const editEntry = (entry) => {
+    setForm(entry);
+    setEditId(entry.id);
+  };
+
+  // 💰 totals
+  const totalGold = entries.reduce((s, e) => s + (e.gold || 0), 0);
+  const totalCash = entries.reduce((s, e) => s + (e.cash || 0), 0);
 
   return (
-    <div
-      style={{
-        padding: 20,
-        backgroundColor: "#ffffff",
-        color: "#000000",
-        minHeight: "100vh",
-        fontFamily: "Arial",
-      }}
-    >
+    <div style={container}>
       <h2>💎 N.K Jewellers Ledger</h2>
 
-      {/* Form */}
-      <div style={{ marginBottom: 20 }}>
-        <input
-          placeholder="Party Name"
-          value={partyName}
-          onChange={(e) => setPartyName(e.target.value)}
-          style={inputStyle}
-        />
+      {/* FORM */}
+      <input
+        placeholder="Party Name"
+        value={form.party_name}
+        onChange={(e) =>
+          setForm({ ...form, party_name: e.target.value })
+        }
+        style={input}
+      />
 
-        <input
-          placeholder="Phone (optional)"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          style={inputStyle}
-        />
+      <input
+        placeholder="Phone (optional)"
+        value={form.phone}
+        onChange={(e) =>
+          setForm({ ...form, phone: e.target.value })
+        }
+        style={input}
+      />
 
-        <input
-          placeholder="Address (optional)"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          style={inputStyle}
-        />
+      <input
+        placeholder="Address (optional)"
+        value={form.address}
+        onChange={(e) =>
+          setForm({ ...form, address: e.target.value })
+        }
+        style={input}
+      />
 
-        <input
-          placeholder="Gold (grams)"
-          value={gold}
-          onChange={(e) => setGold(e.target.value)}
-          style={inputStyle}
-        />
+      <input
+        placeholder="Gold (+ / -)"
+        value={form.gold}
+        onChange={(e) =>
+          setForm({ ...form, gold: e.target.value })
+        }
+        style={input}
+      />
 
-        <input
-          placeholder="Cash (₹)"
-          value={cash}
-          onChange={(e) => setCash(e.target.value)}
-          style={inputStyle}
-        />
+      <input
+        placeholder="Cash (+ / -)"
+        value={form.cash}
+        onChange={(e) =>
+          setForm({ ...form, cash: e.target.value })
+        }
+        style={input}
+      />
 
-        <button onClick={addEntry} style={btnStyle}>
-          ➕ Add Entry
-        </button>
+      <button onClick={handleSubmit} style={btn}>
+        {editId ? "Update Entry" : "Add Entry"}
+      </button>
+
+      {/* TOTAL */}
+      <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
+        <div style={box}>Gold: {totalGold} g</div>
+        <div style={box}>Cash: ₹ {totalCash}</div>
       </div>
 
-      {/* Totals */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
-        <div style={goldBox}>Total Gold: {totalGold} g</div>
-        <div style={cashBox}>Total Cash: ₹ {totalCash}</div>
-      </div>
-
-      {/* Entries */}
-      <h3>Entries</h3>
+      {/* LIST */}
+      <h3 style={{ marginTop: 20 }}>Entries</h3>
 
       {entries.map((e) => (
         <div key={e.id} style={card}>
           <b>{e.party_name}</b>
 
-          <div>Gold: {e.gold} g | Cash: ₹ {e.cash}</div>
+          <div>
+            Gold: {e.gold} g | Cash: ₹ {e.cash}
+          </div>
 
           {e.phone && <div>📞 {e.phone}</div>}
           {e.address && <div>📍 {e.address}</div>}
 
-          <button onClick={() => deleteEntry(e.id)} style={deleteBtn}>
-            ❌ Delete
-          </button>
+          <div style={{ marginTop: 5 }}>
+            <button onClick={() => editEntry(e)}>✏ Edit</button>
+            <button
+              onClick={() => deleteEntry(e.id)}
+              style={{ marginLeft: 10, color: "red" }}
+            >
+              ❌ Delete
+            </button>
+          </div>
         </div>
       ))}
     </div>
   );
 }
 
-// 🎨 Styles
-const inputStyle = {
+// 🎨 styles
+const container = {
+  padding: 20,
+  background: "#fff",
+  color: "#000",
+  minHeight: "100vh",
+};
+
+const input = {
   display: "block",
   marginBottom: 10,
   padding: 10,
   width: "100%",
   maxWidth: 300,
-  border: "1px solid #ccc",
-  color: "#000",
 };
 
-const btnStyle = {
+const btn = {
   padding: 10,
-  background: "#4CAF50",
+  background: "green",
   color: "#fff",
-  border: "none",
-  cursor: "pointer",
-};
-
-const deleteBtn = {
-  marginTop: 10,
-  background: "red",
-  color: "#fff",
-  border: "none",
-  padding: 5,
-  cursor: "pointer",
 };
 
 const card = {
   border: "1px solid #ddd",
   padding: 10,
-  marginBottom: 10,
-  borderRadius: 5,
+  marginTop: 10,
 };
 
-const goldBox = {
+const box = {
   padding: 10,
-  background: "#d4f5d4",
-  borderRadius: 5,
-};
-
-const cashBox = {
-  padding: 10,
-  background: "#f5e1c8",
-  borderRadius: 5,
+  background: "#eee",
 };
