@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
+import jsPDF from "jspdf"; // ✅ NEW
 
 const supabase = createClient(
   "https://norfynjyeeqrqqcqjawp.supabase.co",
@@ -16,7 +17,7 @@ export default function Home() {
     cash: "",
     phone: "",
     address: "",
-    note: "", // ✅ NEW
+    note: "",
   });
 
   const [goldType, setGoldType] = useState("in");
@@ -64,7 +65,7 @@ export default function Home() {
       cash: "",
       phone: "",
       address: "",
-      note: "", // reset
+      note: "",
     });
 
     setGoldType("in");
@@ -96,6 +97,41 @@ export default function Home() {
     partyTotals[name].gold += Number(e.gold || 0);
     partyTotals[name].cash += Number(e.cash || 0);
   });
+
+  // 🔥 PDF FUNCTION
+  const downloadPDF = (name) => {
+    const doc = new jsPDF();
+
+    const partyEntries = entries.filter(
+      (e) => e.party_name === name
+    );
+
+    let totalGold = 0;
+    let totalCash = 0;
+
+    partyEntries.forEach((e) => {
+      totalGold += Number(e.gold || 0);
+      totalCash += Number(e.cash || 0);
+    });
+
+    doc.text("N.K Jewellers Ledger", 10, 10);
+    doc.text(`Party: ${name}`, 10, 20);
+    doc.text(`Gold: ${totalGold} g`, 10, 30);
+    doc.text(`Cash: ₹ ${totalCash}`, 10, 40);
+
+    let y = 50;
+
+    partyEntries.forEach((e, i) => {
+      doc.text(
+        `${i + 1}. Gold: ${e.gold} | Cash: ₹ ${e.cash} ${e.note || ""}`,
+        10,
+        y
+      );
+      y += 10;
+    });
+
+    doc.save(`${name}_ledger.pdf`);
+  };
 
   return (
     <div style={container}>
@@ -130,11 +166,7 @@ export default function Home() {
       />
 
       {/* GOLD */}
-      <select
-        value={goldType}
-        onChange={(e) => setGoldType(e.target.value)}
-        style={input}
-      >
+      <select value={goldType} onChange={(e) => setGoldType(e.target.value)} style={input}>
         <option value="in">Gold Aaya</option>
         <option value="out">Gold Gaya</option>
       </select>
@@ -149,11 +181,7 @@ export default function Home() {
       />
 
       {/* CASH */}
-      <select
-        value={cashType}
-        onChange={(e) => setCashType(e.target.value)}
-        style={input}
-      >
+      <select value={cashType} onChange={(e) => setCashType(e.target.value)} style={input}>
         <option value="in">Cash Aaya</option>
         <option value="out">Cash Gaya</option>
       </select>
@@ -167,7 +195,7 @@ export default function Home() {
         style={input}
       />
 
-      {/* ✅ NOTE FIELD (ADDED SAFE) */}
+      {/* NOTE */}
       <input
         placeholder="Note (kis liye entry hai)"
         value={form.note}
@@ -187,10 +215,20 @@ export default function Home() {
       {Object.entries(partyTotals).map(([name, data]) => (
         <div key={name} style={balanceCard}>
           <b>{name}</b>
+
           <div>Gold: {data.gold} g</div>
+
           <div style={{ color: data.cash >= 0 ? "green" : "red" }}>
             Cash: ₹ {data.cash}
           </div>
+
+          {/* ✅ PDF BUTTON */}
+          <button
+            onClick={() => downloadPDF(name)}
+            style={{ marginTop: 5 }}
+          >
+            📄 PDF
+          </button>
         </div>
       ))}
 
@@ -222,7 +260,7 @@ export default function Home() {
   );
 }
 
-// styles (same)
+// styles
 const container = {
   padding: 20,
   background: "#ffffff",
