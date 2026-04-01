@@ -16,6 +16,7 @@ export default function Home() {
     cash: "",
     phone: "",
     address: "",
+    note: "", // ✅ NEW
   });
 
   const [goldType, setGoldType] = useState("in");
@@ -31,14 +32,12 @@ export default function Home() {
     fetchEntries();
   }, []);
 
-  // 🔥 SUBMIT
   const handleSubmit = async () => {
     if (!form.party_name) return alert("Party name required");
 
     let gold = Number(form.gold) || 0;
     let cash = Number(form.cash) || 0;
 
-    // IN / OUT logic
     if (goldType === "out") gold = -gold;
     if (cashType === "out") cash = -cash;
 
@@ -65,6 +64,7 @@ export default function Home() {
       cash: "",
       phone: "",
       address: "",
+      note: "", // reset
     });
 
     setGoldType("in");
@@ -73,29 +73,24 @@ export default function Home() {
     fetchEntries();
   };
 
-  // ❌ DELETE
   const deleteEntry = async (id) => {
     await supabase.from("entries").delete().eq("id", id);
     fetchEntries();
   };
 
-  // ✏ EDIT
   const editEntry = (e) => {
     setForm(e);
     setEditId(e.id);
   };
 
-  // 🔥 PARTY BALANCE SYSTEM
+  // 🔥 PARTY TOTAL
   const partyTotals = {};
 
   entries.forEach((e) => {
     const name = e.party_name;
 
     if (!partyTotals[name]) {
-      partyTotals[name] = {
-        gold: 0,
-        cash: 0,
-      };
+      partyTotals[name] = { gold: 0, cash: 0 };
     }
 
     partyTotals[name].gold += Number(e.gold || 0);
@@ -135,7 +130,11 @@ export default function Home() {
       />
 
       {/* GOLD */}
-      <select value={goldType} onChange={(e) => setGoldType(e.target.value)} style={input}>
+      <select
+        value={goldType}
+        onChange={(e) => setGoldType(e.target.value)}
+        style={input}
+      >
         <option value="in">Gold Aaya</option>
         <option value="out">Gold Gaya</option>
       </select>
@@ -150,7 +149,11 @@ export default function Home() {
       />
 
       {/* CASH */}
-      <select value={cashType} onChange={(e) => setCashType(e.target.value)} style={input}>
+      <select
+        value={cashType}
+        onChange={(e) => setCashType(e.target.value)}
+        style={input}
+      >
         <option value="in">Cash Aaya</option>
         <option value="out">Cash Gaya</option>
       </select>
@@ -164,24 +167,28 @@ export default function Home() {
         style={input}
       />
 
+      {/* ✅ NOTE FIELD (ADDED SAFE) */}
+      <input
+        placeholder="Note (kis liye entry hai)"
+        value={form.note}
+        onChange={(e) =>
+          setForm({ ...form, note: e.target.value })
+        }
+        style={input}
+      />
+
       <button onClick={handleSubmit} style={btn}>
         {editId ? "Update Entry" : "Add Entry"}
       </button>
 
-      {/* 🔥 PARTY BALANCE UI */}
+      {/* BALANCE */}
       <h3 style={{ marginTop: 20 }}>Party Balances</h3>
 
       {Object.entries(partyTotals).map(([name, data]) => (
         <div key={name} style={balanceCard}>
           <b>{name}</b>
-
           <div>Gold: {data.gold} g</div>
-
-          <div
-            style={{
-              color: data.cash >= 0 ? "green" : "red",
-            }}
-          >
+          <div style={{ color: data.cash >= 0 ? "green" : "red" }}>
             Cash: ₹ {data.cash}
           </div>
         </div>
@@ -198,8 +205,7 @@ export default function Home() {
             Gold: {e.gold} g | Cash: ₹ {e.cash}
           </div>
 
-          {e.phone && <div>📞 {e.phone}</div>}
-          {e.address && <div>📍 {e.address}</div>}
+          {e.note && <div>📝 {e.note}</div>}
 
           <div style={{ marginTop: 5 }}>
             <button onClick={() => editEntry(e)}>✏ Edit</button>
@@ -216,7 +222,7 @@ export default function Home() {
   );
 }
 
-// 🎨 styles
+// styles (same)
 const container = {
   padding: 20,
   background: "#ffffff",
