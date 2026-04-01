@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useParams } from "next/navigation";
+import jsPDF from "jspdf"; // ✅ PDF
 
 const supabase = createClient(
   "https://norfynjyeeqrqqcqjawp.supabase.co",
@@ -34,6 +35,33 @@ export default function PartyPage() {
     totalCash += Number(e.cash || 0);
   });
 
+  // 🔥 PDF FUNCTION
+  const downloadPDF = () => {
+    const doc = new jsPDF();
+
+    doc.text("N.K Jewellers Ledger", 10, 10);
+    doc.text(`Party: ${name}`, 10, 20);
+    doc.text(`Gold: ${totalGold} g`, 10, 30);
+    doc.text(`Cash: ₹ ${totalCash}`, 10, 40);
+
+    let y = 50;
+
+    entries.forEach((e, i) => {
+      const line = `${i + 1}. Gold: ${e.gold} | Cash: ₹ ${e.cash} ${e.note || ""}`;
+      const split = doc.splitTextToSize(line, 180);
+
+      doc.text(split, 10, y);
+      y += split.length * 8;
+
+      if (y > 280) {
+        doc.addPage();
+        y = 20;
+      }
+    });
+
+    doc.save(`${name}_ledger.pdf`);
+  };
+
   return (
     <div style={{ padding: 20 }}>
       <h2>💎 Party: {name}</h2>
@@ -43,6 +71,11 @@ export default function PartyPage() {
       <h3 style={{ color: totalCash >= 0 ? "green" : "red" }}>
         Cash: ₹ {totalCash}
       </h3>
+
+      {/* ✅ PDF BUTTON */}
+      <button onClick={downloadPDF} style={{ marginTop: 10 }}>
+        📄 Download PDF
+      </button>
 
       <h3 style={{ marginTop: 20 }}>Entries</h3>
 
