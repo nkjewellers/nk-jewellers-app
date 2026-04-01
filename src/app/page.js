@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
-import jsPDF from "jspdf"; // ✅ NEW
+import jsPDF from "jspdf";
 
 const supabase = createClient(
   "https://norfynjyeeqrqqcqjawp.supabase.co",
@@ -98,7 +98,7 @@ export default function Home() {
     partyTotals[name].cash += Number(e.cash || 0);
   });
 
-  // 🔥 PDF FUNCTION
+  // 🔥 PDF FUNCTION (FIXED)
   const downloadPDF = (name) => {
     const doc = new jsPDF();
 
@@ -114,7 +114,10 @@ export default function Home() {
       totalCash += Number(e.cash || 0);
     });
 
+    doc.setFontSize(14);
     doc.text("N.K Jewellers Ledger", 10, 10);
+
+    doc.setFontSize(12);
     doc.text(`Party: ${name}`, 10, 20);
     doc.text(`Gold: ${totalGold} g`, 10, 30);
     doc.text(`Cash: ₹ ${totalCash}`, 10, 40);
@@ -122,12 +125,19 @@ export default function Home() {
     let y = 50;
 
     partyEntries.forEach((e, i) => {
-      doc.text(
-        `${i + 1}. Gold: ${e.gold} | Cash: ₹ ${e.cash} ${e.note || ""}`,
-        10,
-        y
-      );
-      y += 10;
+      const line = `${i + 1}. Gold: ${e.gold} | Cash: ₹ ${e.cash} ${e.note || ""}`;
+
+      const splitText = doc.splitTextToSize(line, 180);
+
+      doc.text(splitText, 10, y);
+
+      y += splitText.length * 8;
+
+      // page break
+      if (y > 280) {
+        doc.addPage();
+        y = 20;
+      }
     });
 
     doc.save(`${name}_ledger.pdf`);
@@ -137,7 +147,6 @@ export default function Home() {
     <div style={container}>
       <h2>💎 N.K Jewellers Ledger</h2>
 
-      {/* FORM */}
       <input
         placeholder="Party Name"
         value={form.party_name}
@@ -165,7 +174,6 @@ export default function Home() {
         style={input}
       />
 
-      {/* GOLD */}
       <select value={goldType} onChange={(e) => setGoldType(e.target.value)} style={input}>
         <option value="in">Gold Aaya</option>
         <option value="out">Gold Gaya</option>
@@ -180,7 +188,6 @@ export default function Home() {
         style={input}
       />
 
-      {/* CASH */}
       <select value={cashType} onChange={(e) => setCashType(e.target.value)} style={input}>
         <option value="in">Cash Aaya</option>
         <option value="out">Cash Gaya</option>
@@ -195,7 +202,6 @@ export default function Home() {
         style={input}
       />
 
-      {/* NOTE */}
       <input
         placeholder="Note (kis liye entry hai)"
         value={form.note}
@@ -209,7 +215,6 @@ export default function Home() {
         {editId ? "Update Entry" : "Add Entry"}
       </button>
 
-      {/* BALANCE */}
       <h3 style={{ marginTop: 20 }}>Party Balances</h3>
 
       {Object.entries(partyTotals).map(([name, data]) => (
@@ -222,17 +227,12 @@ export default function Home() {
             Cash: ₹ {data.cash}
           </div>
 
-          {/* ✅ PDF BUTTON */}
-          <button
-            onClick={() => downloadPDF(name)}
-            style={{ marginTop: 5 }}
-          >
+          <button onClick={() => downloadPDF(name)} style={{ marginTop: 5 }}>
             📄 PDF
           </button>
         </div>
       ))}
 
-      {/* HISTORY */}
       <h3 style={{ marginTop: 20 }}>All Entries</h3>
 
       {entries.map((e) => (
