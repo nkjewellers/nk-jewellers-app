@@ -1,7 +1,9 @@
 "use client";
-import { useState, useEffect } from "react";
+
+import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
+// 🔑 Supabase config
 const supabase = createClient(
   "https://norfynjyeeqrqqcqjawp.supabase.co",
   "sb_publishable_CVSigeYJoONriiY2j0yXvg_hvU4d9ZM"
@@ -9,169 +11,179 @@ const supabase = createClient(
 
 export default function Home() {
   const [entries, setEntries] = useState([]);
-  const [editingId, setEditingId] = useState(null);
-
-  const [party, setParty] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
+  const [partyName, setPartyName] = useState("");
   const [gold, setGold] = useState("");
   const [cash, setCash] = useState("");
-  const [type, setType] = useState("IN");
+  const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+
+  // 📥 Fetch data
+  const fetchEntries = async () => {
+    const { data } = await supabase.from("entries").select("*");
+    setEntries(data || []);
+  };
 
   useEffect(() => {
     fetchEntries();
   }, []);
 
-  async function fetchEntries() {
-    const { data } = await supabase
-      .from("entries")
-      .select("*")
-      .order("created_at", { ascending: false });
+  // ➕ Add entry
+  const addEntry = async () => {
+    if (!partyName) return alert("Party name required");
 
-    setEntries(data || []);
-  }
+    await supabase.from("entries").insert([
+      {
+        party_name: partyName,
+        gold: Number(gold) || 0,
+        cash: Number(cash) || 0,
+        phone: phone || null,
+        address: address || null,
+      },
+    ]);
 
-  async function saveEntry() {
-    if (!party) return alert("Enter party name");
-
-    // 🔍 same party + phone + address
-    const existing = entries.find(
-      (e) =>
-        e.party_name.toLowerCase() === party.toLowerCase() &&
-        (e.phone || "") === (phone || "") &&
-        (e.address || "") === (address || "")
-    );
-
-    // 🔥 MERGE LOGIC
-    if (!editingId && existing) {
-      const merge = confirm("Same party found. Merge entries?");
-      if (merge) {
-        const newGold =
-          type === "IN"
-            ? (existing.gold || 0) + Number(gold || 0)
-            : (existing.gold || 0) - Number(gold || 0);
-
-        const newCash =
-          type === "IN"
-            ? (existing.cash || 0) + Number(cash || 0)
-            : (existing.cash || 0) - Number(cash || 0);
-
-        await supabase
-          .from("entries")
-          .update({ gold: newGold, cash: newCash })
-          .eq("id", existing.id);
-
-        clearForm();
-        fetchEntries();
-        return;
-      }
-    }
-
-    if (editingId) {
-      // ✏️ UPDATE
-      await supabase
-        .from("entries")
-        .update({
-          party_name: party,
-          phone,
-          address,
-          gold,
-          cash,
-          type,
-        })
-        .eq("id", editingId);
-
-      setEditingId(null);
-    } else {
-      // ➕ INSERT
-      await supabase.from("entries").insert([
-        {
-          party_name: party,
-          phone,
-          address,
-          gold,
-          cash,
-          type,
-        },
-      ]);
-    }
-
-    clearForm();
-    fetchEntries();
-  }
-
-  function editEntry(e) {
-    setEditingId(e.id);
-    setParty(e.party_name);
-    setPhone(e.phone || "");
-    setAddress(e.address || "");
-    setGold(e.gold);
-    setCash(e.cash);
-    setType(e.type || "IN");
-  }
-
-  async function deleteEntry(id) {
-    if (!confirm("Delete this entry?")) return;
-    await supabase.from("entries").delete().eq("id", id);
-    fetchEntries();
-  }
-
-  function clearForm() {
-    setParty("");
-    setPhone("");
-    setAddress("");
+    setPartyName("");
     setGold("");
     setCash("");
-  }
+    setPhone("");
+    setAddress("");
 
-  const totalGold = entries.reduce((sum, e) => {
-    return e.type === "IN"
-      ? sum + (e.gold || 0)
-      : sum - (e.gold || 0);
-  }, 0);
+    fetchEntries();
+  };
 
-  const totalCash = entries.reduce((sum, e) => {
-    return e.type === "IN"
-      ? sum + (e.cash || 0)
-      : sum - (e.cash || 0);
-  }, 0);
+  // ❌ Delete entry
+  const deleteEntry = async (id) => {
+    await supabase.from("entries").delete().eq("id", id);
+    fetchEntries();
+  };
+
+  // 💰 Totals
+  const totalGold = entries.reduce((sum, e) => sum + (e.gold || 0), 0);
+  const totalCash = entries.reduce((sum, e) => sum + (e.cash || 0), 0);
 
   return (
-    <div style={{ padding: 20 }}>
+    <div
+      style={{
+        padding: 20,
+        backgroundColor: "#ffffff",
+        color: "#000000",
+        minHeight: "100vh",
+        fontFamily: "Arial",
+      }}
+    >
       <h2>💎 N.K Jewellers Ledger</h2>
 
-      <input placeholder="Party Name" value={party} onChange={(e) => setParty(e.target.value)} />
-      <input placeholder="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} />
-      <input placeholder="Address" value={address} onChange={(e) => setAddress(e.target.value)} />
+      {/* Form */}
+      <div style={{ marginBottom: 20 }}>
+        <input
+          placeholder="Party Name"
+          value={partyName}
+          onChange={(e) => setPartyName(e.target.value)}
+          style={inputStyle}
+        />
 
-      <select value={type} onChange={(e) => setType(e.target.value)}>
-        <option value="IN">IN (Aaya)</option>
-        <option value="OUT">OUT (Gaya)</option>
-      </select>
+        <input
+          placeholder="Phone (optional)"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          style={inputStyle}
+        />
 
-      <input placeholder="Gold" value={gold} onChange={(e) => setGold(e.target.value)} />
-      <input placeholder="Cash" value={cash} onChange={(e) => setCash(e.target.value)} />
+        <input
+          placeholder="Address (optional)"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          style={inputStyle}
+        />
 
-      <button onClick={saveEntry}>
-        {editingId ? "Update Entry" : "Add Entry"}
-      </button>
+        <input
+          placeholder="Gold (grams)"
+          value={gold}
+          onChange={(e) => setGold(e.target.value)}
+          style={inputStyle}
+        />
 
-      <h3>Total Gold: {totalGold} g</h3>
-      <h3>Total Cash: ₹ {totalCash}</h3>
+        <input
+          placeholder="Cash (₹)"
+          value={cash}
+          onChange={(e) => setCash(e.target.value)}
+          style={inputStyle}
+        />
+
+        <button onClick={addEntry} style={btnStyle}>
+          ➕ Add Entry
+        </button>
+      </div>
+
+      {/* Totals */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 20 }}>
+        <div style={goldBox}>Total Gold: {totalGold} g</div>
+        <div style={cashBox}>Total Cash: ₹ {totalCash}</div>
+      </div>
+
+      {/* Entries */}
+      <h3>Entries</h3>
 
       {entries.map((e) => (
-        <div key={e.id} style={{ marginTop: 10, padding: 10, background: "#eee" }}>
+        <div key={e.id} style={card}>
           <b>{e.party_name}</b>
-          <div>📞 {e.phone || "-"}</div>
-          <div>📍 {e.address || "-"}</div>
-          <div>Type: {e.type}</div>
-          <div>Gold: {e.gold}</div>
-          <div>Cash: ₹ {e.cash}</div>
 
-          <button onClick={() => editEntry(e)}>✏️ Edit</button>
-          <button onClick={() => deleteEntry(e.id)}>🗑 Delete</button>
+          <div>Gold: {e.gold} g | Cash: ₹ {e.cash}</div>
+
+          {e.phone && <div>📞 {e.phone}</div>}
+          {e.address && <div>📍 {e.address}</div>}
+
+          <button onClick={() => deleteEntry(e.id)} style={deleteBtn}>
+            ❌ Delete
+          </button>
         </div>
       ))}
     </div>
   );
 }
+
+// 🎨 Styles
+const inputStyle = {
+  display: "block",
+  marginBottom: 10,
+  padding: 10,
+  width: "100%",
+  maxWidth: 300,
+  border: "1px solid #ccc",
+  color: "#000",
+};
+
+const btnStyle = {
+  padding: 10,
+  background: "#4CAF50",
+  color: "#fff",
+  border: "none",
+  cursor: "pointer",
+};
+
+const deleteBtn = {
+  marginTop: 10,
+  background: "red",
+  color: "#fff",
+  border: "none",
+  padding: 5,
+  cursor: "pointer",
+};
+
+const card = {
+  border: "1px solid #ddd",
+  padding: 10,
+  marginBottom: 10,
+  borderRadius: 5,
+};
+
+const goldBox = {
+  padding: 10,
+  background: "#d4f5d4",
+  borderRadius: 5,
+};
+
+const cashBox = {
+  padding: 10,
+  background: "#f5e1c8",
+  borderRadius: 5,
+};
