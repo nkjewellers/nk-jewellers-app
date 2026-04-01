@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import jsPDF from "jspdf";
+import Link from "next/link"; // ✅ NEW
 
 const supabase = createClient(
   "https://norfynjyeeqrqqcqjawp.supabase.co",
@@ -84,7 +85,7 @@ export default function Home() {
     setEditId(e.id);
   };
 
-  // 🔥 PARTY TOTAL
+  // PARTY TOTAL
   const partyTotals = {};
 
   entries.forEach((e) => {
@@ -98,7 +99,7 @@ export default function Home() {
     partyTotals[name].cash += Number(e.cash || 0);
   });
 
-  // 🔥 PDF FUNCTION (FIXED)
+  // PDF FUNCTION (same)
   const downloadPDF = (name) => {
     const doc = new jsPDF();
 
@@ -126,14 +127,11 @@ export default function Home() {
 
     partyEntries.forEach((e, i) => {
       const line = `${i + 1}. Gold: ${e.gold} | Cash: ₹ ${e.cash} ${e.note || ""}`;
-
       const splitText = doc.splitTextToSize(line, 180);
 
       doc.text(splitText, 10, y);
-
       y += splitText.length * 8;
 
-      // page break
       if (y > 280) {
         doc.addPage();
         y = 20;
@@ -147,69 +145,34 @@ export default function Home() {
     <div style={container}>
       <h2>💎 N.K Jewellers Ledger</h2>
 
-      <input
-        placeholder="Party Name"
-        value={form.party_name}
-        onChange={(e) =>
-          setForm({ ...form, party_name: e.target.value })
-        }
-        style={input}
-      />
+      {/* FORM */}
+      <input placeholder="Party Name" value={form.party_name}
+        onChange={(e) => setForm({ ...form, party_name: e.target.value })} style={input} />
 
-      <input
-        placeholder="Phone"
-        value={form.phone}
-        onChange={(e) =>
-          setForm({ ...form, phone: e.target.value })
-        }
-        style={input}
-      />
+      <input placeholder="Phone" value={form.phone}
+        onChange={(e) => setForm({ ...form, phone: e.target.value })} style={input} />
 
-      <input
-        placeholder="Address"
-        value={form.address}
-        onChange={(e) =>
-          setForm({ ...form, address: e.target.value })
-        }
-        style={input}
-      />
+      <input placeholder="Address" value={form.address}
+        onChange={(e) => setForm({ ...form, address: e.target.value })} style={input} />
 
       <select value={goldType} onChange={(e) => setGoldType(e.target.value)} style={input}>
         <option value="in">Gold Aaya</option>
         <option value="out">Gold Gaya</option>
       </select>
 
-      <input
-        placeholder="Gold"
-        value={form.gold}
-        onChange={(e) =>
-          setForm({ ...form, gold: e.target.value })
-        }
-        style={input}
-      />
+      <input placeholder="Gold" value={form.gold}
+        onChange={(e) => setForm({ ...form, gold: e.target.value })} style={input} />
 
       <select value={cashType} onChange={(e) => setCashType(e.target.value)} style={input}>
         <option value="in">Cash Aaya</option>
         <option value="out">Cash Gaya</option>
       </select>
 
-      <input
-        placeholder="Cash"
-        value={form.cash}
-        onChange={(e) =>
-          setForm({ ...form, cash: e.target.value })
-        }
-        style={input}
-      />
+      <input placeholder="Cash" value={form.cash}
+        onChange={(e) => setForm({ ...form, cash: e.target.value })} style={input} />
 
-      <input
-        placeholder="Note (kis liye entry hai)"
-        value={form.note}
-        onChange={(e) =>
-          setForm({ ...form, note: e.target.value })
-        }
-        style={input}
-      />
+      <input placeholder="Note" value={form.note}
+        onChange={(e) => setForm({ ...form, note: e.target.value })} style={input} />
 
       <button onClick={handleSubmit} style={btn}>
         {editId ? "Update Entry" : "Add Entry"}
@@ -219,7 +182,13 @@ export default function Home() {
 
       {Object.entries(partyTotals).map(([name, data]) => (
         <div key={name} style={balanceCard}>
-          <b>{name}</b>
+          
+          {/* ✅ CLICKABLE NAME */}
+          <Link href={`/party/${name}`}>
+            <b style={{ cursor: "pointer", color: "blue" }}>
+              {name}
+            </b>
+          </Link>
 
           <div>Gold: {data.gold} g</div>
 
@@ -260,38 +229,9 @@ export default function Home() {
   );
 }
 
-// styles
-const container = {
-  padding: 20,
-  background: "#ffffff",
-  color: "#000000",
-  minHeight: "100vh",
-};
-
-const input = {
-  display: "block",
-  marginBottom: 10,
-  padding: 10,
-  width: "100%",
-  maxWidth: 300,
-  color: "#000",
-};
-
-const btn = {
-  padding: 10,
-  background: "green",
-  color: "#fff",
-};
-
-const card = {
-  border: "1px solid #ddd",
-  padding: 10,
-  marginTop: 10,
-};
-
-const balanceCard = {
-  border: "1px solid #ccc",
-  padding: 10,
-  marginBottom: 10,
-  background: "#f5f5f5",
-};
+// styles same
+const container = { padding: 20, background: "#fff", color: "#000", minHeight: "100vh" };
+const input = { display: "block", marginBottom: 10, padding: 10, width: "100%", maxWidth: 300 };
+const btn = { padding: 10, background: "green", color: "#fff" };
+const card = { border: "1px solid #ddd", padding: 10, marginTop: 10 };
+const balanceCard = { border: "1px solid #ccc", padding: 10, marginBottom: 10, background: "#f5f5f5" };
