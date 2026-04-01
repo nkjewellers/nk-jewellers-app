@@ -20,7 +20,6 @@ export default function Home() {
 
   const [goldType, setGoldType] = useState("in");
   const [cashType, setCashType] = useState("in");
-
   const [editId, setEditId] = useState(null);
 
   const fetchEntries = async () => {
@@ -32,7 +31,6 @@ export default function Home() {
     fetchEntries();
   }, []);
 
-  // 🔥 MAIN LOGIC
   const handleSubmit = async () => {
     if (!form.party_name) return alert("Party name required");
 
@@ -63,16 +61,29 @@ export default function Home() {
       setEditId(null);
     }
 
-    // 🔁 MERGE
+    // 🔁 MERGE (FINAL FIXED)
     else if (existing) {
       const confirmMerge = confirm("Same party found. Merge?");
 
       if (confirmMerge) {
+        // 🔥 fresh DB fetch
+        const { data: fresh } = await supabase
+          .from("entries")
+          .select("*")
+          .eq("id", existing.id)
+          .single();
+
+        const updatedGold =
+          Number(fresh.gold || 0) + gold;
+
+        const updatedCash =
+          Number(fresh.cash || 0) + cash;
+
         await supabase
           .from("entries")
           .update({
-            gold: Number(existing.gold || 0) + gold,
-            cash: Number(existing.cash || 0) + cash,
+            gold: updatedGold,
+            cash: updatedCash,
           })
           .eq("id", existing.id);
       } else {
@@ -89,6 +100,7 @@ export default function Home() {
       ]);
     }
 
+    // reset
     setForm({
       party_name: "",
       gold: "",
@@ -103,21 +115,25 @@ export default function Home() {
     fetchEntries();
   };
 
-  // ❌ DELETE
   const deleteEntry = async (id) => {
     await supabase.from("entries").delete().eq("id", id);
     fetchEntries();
   };
 
-  // ✏ EDIT LOAD
   const editEntry = (e) => {
     setForm(e);
     setEditId(e.id);
   };
 
-  // 💰 TOTAL
-  const totalGold = entries.reduce((s, e) => s + (e.gold || 0), 0);
-  const totalCash = entries.reduce((s, e) => s + (e.cash || 0), 0);
+  const totalGold = entries.reduce(
+    (s, e) => s + Number(e.gold || 0),
+    0
+  );
+
+  const totalCash = entries.reduce(
+    (s, e) => s + Number(e.cash || 0),
+    0
+  );
 
   return (
     <div style={container}>
@@ -134,7 +150,7 @@ export default function Home() {
       />
 
       <input
-        placeholder="Phone (optional)"
+        placeholder="Phone"
         value={form.phone}
         onChange={(e) =>
           setForm({ ...form, phone: e.target.value })
@@ -143,7 +159,7 @@ export default function Home() {
       />
 
       <input
-        placeholder="Address (optional)"
+        placeholder="Address"
         value={form.address}
         onChange={(e) =>
           setForm({ ...form, address: e.target.value })
@@ -162,7 +178,7 @@ export default function Home() {
       </select>
 
       <input
-        placeholder="Gold amount"
+        placeholder="Gold"
         value={form.gold}
         onChange={(e) =>
           setForm({ ...form, gold: e.target.value })
@@ -181,7 +197,7 @@ export default function Home() {
       </select>
 
       <input
-        placeholder="Cash amount"
+        placeholder="Cash"
         value={form.cash}
         onChange={(e) =>
           setForm({ ...form, cash: e.target.value })
@@ -228,7 +244,7 @@ export default function Home() {
   );
 }
 
-// 🎨 styles
+// styles
 const container = {
   padding: 20,
   background: "#ffffff",
