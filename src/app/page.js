@@ -1,88 +1,45 @@
-"use client";
+const handleSubmit = async () => {
+  if (!form.party_name) return alert("Party name required");
 
-import { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
+  const gold = Number(form.gold) || 0;
+  const cash = Number(form.cash) || 0;
 
-const supabase = createClient(
-  "https://norfynjyeeqrqqcqjawp.supabase.co",
-  "sb_publishable_CVSigeYJoONriiY2j0yXvg_hvU4d9ZM"
-);
+  // 🔍 SAME PARTY CHECK (FIXED LOGIC)
+  const existing = entries.find(
+    (e) =>
+      e.party_name.toLowerCase() === form.party_name.toLowerCase() &&
+      (e.phone || "") === (form.phone || "")
+  );
 
-export default function Home() {
-  const [entries, setEntries] = useState([]);
-  const [form, setForm] = useState({
-    party_name: "",
-    gold: "",
-    cash: "",
-    phone: "",
-    address: "",
-  });
+  // ✏ EDIT MODE
+  if (editId) {
+    await supabase
+      .from("entries")
+      .update({
+        ...form,
+        gold,
+        cash,
+      })
+      .eq("id", editId);
 
-  const [editId, setEditId] = useState(null);
+    setEditId(null);
+  }
 
-  const fetchEntries = async () => {
-    const { data } = await supabase.from("entries").select("*");
-    setEntries(data || []);
-  };
-
-  useEffect(() => {
-    fetchEntries();
-  }, []);
-
-  // ➕ Add / Merge / Update
-  const handleSubmit = async () => {
-    if (!form.party_name) return alert("Party name required");
-
-    const gold = Number(form.gold) || 0;
-    const cash = Number(form.cash) || 0;
-
-    // 🔍 same party check
-    const existing = entries.find(
-      (e) =>
-        e.party_name.toLowerCase() === form.party_name.toLowerCase() &&
-        (e.phone || "") === (form.phone || "") &&
-        (e.address || "") === (form.address || "")
+  // 🔁 MERGE MODE
+  else if (existing) {
+    const confirmMerge = confirm(
+      "Same party found. Merge entries?"
     );
 
-    // ✏ EDIT MODE
-    if (editId) {
+    if (confirmMerge) {
       await supabase
         .from("entries")
         .update({
-          ...form,
-          gold,
-          cash,
+          gold: existing.gold + gold,
+          cash: existing.cash + cash,
         })
-        .eq("id", editId);
-
-      setEditId(null);
-    }
-    // 🔁 MERGE MODE
-    else if (existing) {
-      const confirmMerge = confirm(
-        "Same party found. Merge entries?"
-      );
-
-      if (confirmMerge) {
-        await supabase
-          .from("entries")
-          .update({
-            gold: existing.gold + gold,
-            cash: existing.cash + cash,
-          })
-          .eq("id", existing.id);
-      } else {
-        await supabase.from("entries").insert([
-          {
-            ...form,
-            gold,
-            cash,
-          },
-        ]);
-      }
-    }
-    // ➕ NEW
-    else {
+        .eq("id", existing.id);
+    } else {
       await supabase.from("entries").insert([
         {
           ...form,
@@ -91,152 +48,27 @@ export default function Home() {
         },
       ]);
     }
+  }
 
-    setForm({
-      party_name: "",
-      gold: "",
-      cash: "",
-      phone: "",
-      address: "",
-    });
+  // ➕ NEW ENTRY
+  else {
+    await supabase.from("entries").insert([
+      {
+        ...form,
+        gold,
+        cash,
+      },
+    ]);
+  }
 
-    fetchEntries();
-  };
+  // 🔄 Reset form
+  setForm({
+    party_name: "",
+    gold: "",
+    cash: "",
+    phone: "",
+    address: "",
+  });
 
-  // ❌ Delete
-  const deleteEntry = async (id) => {
-    await supabase.from("entries").delete().eq("id", id);
-    fetchEntries();
-  };
-
-  // ✏ Edit
-  const editEntry = (entry) => {
-    setForm(entry);
-    setEditId(entry.id);
-  };
-
-  // 💰 totals
-  const totalGold = entries.reduce((s, e) => s + (e.gold || 0), 0);
-  const totalCash = entries.reduce((s, e) => s + (e.cash || 0), 0);
-
-  return (
-    <div style={container}>
-      <h2>💎 N.K Jewellers Ledger</h2>
-
-      {/* FORM */}
-      <input
-        placeholder="Party Name"
-        value={form.party_name}
-        onChange={(e) =>
-          setForm({ ...form, party_name: e.target.value })
-        }
-        style={input}
-      />
-
-      <input
-        placeholder="Phone (optional)"
-        value={form.phone}
-        onChange={(e) =>
-          setForm({ ...form, phone: e.target.value })
-        }
-        style={input}
-      />
-
-      <input
-        placeholder="Address (optional)"
-        value={form.address}
-        onChange={(e) =>
-          setForm({ ...form, address: e.target.value })
-        }
-        style={input}
-      />
-
-      <input
-        placeholder="Gold (+ / -)"
-        value={form.gold}
-        onChange={(e) =>
-          setForm({ ...form, gold: e.target.value })
-        }
-        style={input}
-      />
-
-      <input
-        placeholder="Cash (+ / -)"
-        value={form.cash}
-        onChange={(e) =>
-          setForm({ ...form, cash: e.target.value })
-        }
-        style={input}
-      />
-
-      <button onClick={handleSubmit} style={btn}>
-        {editId ? "Update Entry" : "Add Entry"}
-      </button>
-
-      {/* TOTAL */}
-      <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
-        <div style={box}>Gold: {totalGold} g</div>
-        <div style={box}>Cash: ₹ {totalCash}</div>
-      </div>
-
-      {/* LIST */}
-      <h3 style={{ marginTop: 20 }}>Entries</h3>
-
-      {entries.map((e) => (
-        <div key={e.id} style={card}>
-          <b>{e.party_name}</b>
-
-          <div>
-            Gold: {e.gold} g | Cash: ₹ {e.cash}
-          </div>
-
-          {e.phone && <div>📞 {e.phone}</div>}
-          {e.address && <div>📍 {e.address}</div>}
-
-          <div style={{ marginTop: 5 }}>
-            <button onClick={() => editEntry(e)}>✏ Edit</button>
-            <button
-              onClick={() => deleteEntry(e.id)}
-              style={{ marginLeft: 10, color: "red" }}
-            >
-              ❌ Delete
-            </button>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// 🎨 styles
-const container = {
-  padding: 20,
-  background: "#fff",
-  color: "#000",
-  minHeight: "100vh",
-};
-
-const input = {
-  display: "block",
-  marginBottom: 10,
-  padding: 10,
-  width: "100%",
-  maxWidth: 300,
-};
-
-const btn = {
-  padding: 10,
-  background: "green",
-  color: "#fff",
-};
-
-const card = {
-  border: "1px solid #ddd",
-  padding: 10,
-  marginTop: 10,
-};
-
-const box = {
-  padding: 10,
-  background: "#eee",
+  fetchEntries();
 };
