@@ -31,6 +31,7 @@ export default function Home() {
     fetchEntries();
   }, []);
 
+  // 🔥 SUBMIT
   const handleSubmit = async () => {
     if (!form.party_name) return alert("Party name required");
 
@@ -41,13 +42,6 @@ export default function Home() {
     if (goldType === "out") gold = -gold;
     if (cashType === "out") cash = -cash;
 
-    const existing = entries.find(
-      (e) =>
-        e.party_name.toLowerCase() === form.party_name.toLowerCase() &&
-        (e.phone || "") === (form.phone || "")
-    );
-
-    // ✏ EDIT
     if (editId) {
       await supabase
         .from("entries")
@@ -59,48 +53,12 @@ export default function Home() {
         .eq("id", editId);
 
       setEditId(null);
-    }
-
-    // 🔁 MERGE (FINAL FIXED)
-    else if (existing) {
-      const confirmMerge = confirm("Same party found. Merge?");
-
-      if (confirmMerge) {
-        // 🔥 fresh DB fetch
-        const { data: fresh } = await supabase
-          .from("entries")
-          .select("*")
-          .eq("id", existing.id)
-          .single();
-
-        const updatedGold =
-          Number(fresh.gold || 0) + gold;
-
-        const updatedCash =
-          Number(fresh.cash || 0) + cash;
-
-        await supabase
-          .from("entries")
-          .update({
-            gold: updatedGold,
-            cash: updatedCash,
-          })
-          .eq("id", existing.id);
-      } else {
-        await supabase.from("entries").insert([
-          { ...form, gold, cash },
-        ]);
-      }
-    }
-
-    // ➕ NEW
-    else {
+    } else {
       await supabase.from("entries").insert([
         { ...form, gold, cash },
       ]);
     }
 
-    // reset
     setForm({
       party_name: "",
       gold: "",
@@ -115,25 +73,34 @@ export default function Home() {
     fetchEntries();
   };
 
+  // ❌ DELETE
   const deleteEntry = async (id) => {
     await supabase.from("entries").delete().eq("id", id);
     fetchEntries();
   };
 
+  // ✏ EDIT
   const editEntry = (e) => {
     setForm(e);
     setEditId(e.id);
   };
 
-  const totalGold = entries.reduce(
-    (s, e) => s + Number(e.gold || 0),
-    0
-  );
+  // 🔥 PARTY BALANCE SYSTEM
+  const partyTotals = {};
 
-  const totalCash = entries.reduce(
-    (s, e) => s + Number(e.cash || 0),
-    0
-  );
+  entries.forEach((e) => {
+    const name = e.party_name;
+
+    if (!partyTotals[name]) {
+      partyTotals[name] = {
+        gold: 0,
+        cash: 0,
+      };
+    }
+
+    partyTotals[name].gold += Number(e.gold || 0);
+    partyTotals[name].cash += Number(e.cash || 0);
+  });
 
   return (
     <div style={container}>
@@ -168,11 +135,7 @@ export default function Home() {
       />
 
       {/* GOLD */}
-      <select
-        value={goldType}
-        onChange={(e) => setGoldType(e.target.value)}
-        style={input}
-      >
+      <select value={goldType} onChange={(e) => setGoldType(e.target.value)} style={input}>
         <option value="in">Gold Aaya</option>
         <option value="out">Gold Gaya</option>
       </select>
@@ -187,11 +150,7 @@ export default function Home() {
       />
 
       {/* CASH */}
-      <select
-        value={cashType}
-        onChange={(e) => setCashType(e.target.value)}
-        style={input}
-      >
+      <select value={cashType} onChange={(e) => setCashType(e.target.value)} style={input}>
         <option value="in">Cash Aaya</option>
         <option value="out">Cash Gaya</option>
       </select>
@@ -209,14 +168,27 @@ export default function Home() {
         {editId ? "Update Entry" : "Add Entry"}
       </button>
 
-      {/* TOTAL */}
-      <div style={{ display: "flex", gap: 10, marginTop: 20 }}>
-        <div style={box}>Gold: {totalGold} g</div>
-        <div style={box}>Cash: ₹ {totalCash}</div>
-      </div>
+      {/* 🔥 PARTY BALANCE UI */}
+      <h3 style={{ marginTop: 20 }}>Party Balances</h3>
 
-      {/* LIST */}
-      <h3 style={{ marginTop: 20 }}>Entries</h3>
+      {Object.entries(partyTotals).map(([name, data]) => (
+        <div key={name} style={balanceCard}>
+          <b>{name}</b>
+
+          <div>Gold: {data.gold} g</div>
+
+          <div
+            style={{
+              color: data.cash >= 0 ? "green" : "red",
+            }}
+          >
+            Cash: ₹ {data.cash}
+          </div>
+        </div>
+      ))}
+
+      {/* HISTORY */}
+      <h3 style={{ marginTop: 20 }}>All Entries</h3>
 
       {entries.map((e) => (
         <div key={e.id} style={card}>
@@ -244,7 +216,7 @@ export default function Home() {
   );
 }
 
-// styles
+// 🎨 styles
 const container = {
   padding: 20,
   background: "#ffffff",
@@ -273,7 +245,9 @@ const card = {
   marginTop: 10,
 };
 
-const box = {
+const balanceCard = {
+  border: "1px solid #ccc",
   padding: 10,
-  background: "#eee",
+  marginBottom: 10,
+  background: "#f5f5f5",
 };
