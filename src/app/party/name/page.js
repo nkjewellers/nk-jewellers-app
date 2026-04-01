@@ -39,6 +39,7 @@ export default function PartyPage() {
       <h2>💎 Party: {name}</h2>
 
       <h3>Gold: {totalGold} g</h3>
+
       <h3 style={{ color: totalCash >= 0 ? "green" : "red" }}>
         Cash: ₹ {totalCash}
       </h3>
